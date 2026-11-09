@@ -46,6 +46,7 @@ window.__ModuleLoader__.load({
         'view.timeline': 'Timeline',
         'view.list': 'List',
         'view.export': 'Export .md',
+        'view.prompts': 'Prompts',
         'timeline.start': 'Session started',
         'timeline.prompt': 'Prompt',
         'filter.clear': 'Clear filters',
@@ -107,6 +108,7 @@ window.__ModuleLoader__.load({
         'view.timeline': 'Línea de tiempo',
         'view.list': 'Lista',
         'view.export': 'Exportar .md',
+        'view.prompts': 'Pedidos',
         'timeline.start': 'Sesión iniciada',
         'timeline.prompt': 'Pedido',
         'filter.clear': 'Limpiar filtros',
@@ -215,6 +217,7 @@ window.__ModuleLoader__.load({
 .dt-mode button[aria-pressed="true"]{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-weight:500}
 .dt-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .dt-button-small{font-size:12px;padding:4px 10px}
+.dt-button[aria-pressed="false"]{opacity:.6;color:var(--dsw-alias-label-secondary)}
 .dt-filters{display:flex;flex-wrap:wrap;gap:6px}
 .dt-chip{font:inherit;font-size:11px;padding:2px 9px;border-radius:999px;cursor:pointer;border:1px solid var(--dsw-alias-border-l1);background:transparent;color:var(--dsw-alias-label-secondary)}
 .dt-chip:hover{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l2)}
@@ -831,6 +834,9 @@ window.__ModuleLoader__.load({
       const [openId, setOpenId] = React.useState(null)
       const [layout, setLayout] = React.useState('timeline')
       const [filter, setFilter] = React.useState({ status: '', category: '' })
+      // Prompts are context. They can be turned off entirely; the session's
+      // opening node stays, because it is the idea the session was about.
+      const [showPrompts, setShowPrompts] = React.useState(true)
       const { activate, openSettings } = props
 
       // The projection reaches the Client already folded by the Host; the view
@@ -1005,6 +1011,16 @@ window.__ModuleLoader__.load({
                     {
                       type: 'button',
                       className: 'dt-button dt-button-small',
+                      'aria-pressed': showPrompts,
+                      onClick: () => setShowPrompts(current => !current),
+                    },
+                    t('view.prompts'),
+                  ),
+                  h(
+                    'button',
+                    {
+                      type: 'button',
+                      className: 'dt-button dt-button-small',
                       onClick: () =>
                         downloadText(
                           `decisions-${props.sessionId ?? 'session'}.md`,
@@ -1098,6 +1114,7 @@ window.__ModuleLoader__.load({
           })
         }
         for (const prompt of prompts) {
+          if (!showPrompts) break
           // The opening prompt already heads the timeline as its first node.
           if (firstPrompt !== null && Number(prompt.seq) === Number(firstPrompt.seq)) continue
           timelineNodes.push({
