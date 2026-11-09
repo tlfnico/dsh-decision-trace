@@ -106,9 +106,23 @@ function finalizedDecision(state, event, pending) {
  * One fold step. Returns the same state reference for events it ignores, so
  * unchanged state costs nothing downstream.
  */
+/**
+ * A `user/message` event carries the message itself in `data`, while the
+ * developer and system events wrap theirs in `data.message`. Read both, so the
+ * evidence never silently comes back empty again.
+ */
+function messageOf(event) {
+  const data = event.data ?? {}
+  const looksLikeMessage =
+    typeof data.content === 'string' ||
+    Array.isArray(data.content) ||
+    typeof data.role === 'string'
+  return looksLikeMessage ? data : data.message
+}
+
 export function applyDecisionEvent(state, event) {
   if (event.type === 'user/message') {
-    const text = userMessageText(event.data?.message).slice(0, 200)
+    const text = userMessageText(messageOf(event)).slice(0, 200)
     const next = { ...state, lastUser: { seq: event.seq, text } }
     // A message with no text still opens a turn, but it makes a poor timeline
     // node, so only readable prompts are kept.

@@ -45,11 +45,13 @@ const resultEvent = (seq, callId, decision, options = {}) => {
   }
 }
 
+// `user/message` carries the message itself in `data`, not wrapped in
+// `message` the way developer and system events do.
 const userEvent = (seq, text) => ({
   type: 'user/message',
   seq,
   time: 500 + seq,
-  data: { message: { role: 'user', content: [{ type: 'text', text }] } },
+  data: { role: 'user', content: [{ type: 'text', text }] },
 })
 
 const recorded = (id, extra = {}) => ({
@@ -86,6 +88,18 @@ test('a prompt with no text opens a turn but adds no timeline node', () => {
   const state = foldDecisions([userEvent(1, '')], header)
   assert.equal(state.lastUser.seq, 1)
   assert.deepEqual(state.prompts, [])
+})
+
+test('a wrapped user message is still read, in case a build nests it', () => {
+  const wrapped = {
+    type: 'user/message',
+    seq: 1,
+    time: 501,
+    data: { message: { role: 'user', content: [{ type: 'text', text: 'wrapped' }] } },
+  }
+  const state = foldDecisions([wrapped], header)
+  assert.equal(state.prompts[0].text, 'wrapped')
+  assert.equal(state.lastUser.text, 'wrapped')
 })
 
 test('prompts are bounded', () => {

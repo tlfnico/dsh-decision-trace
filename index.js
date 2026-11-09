@@ -24,9 +24,9 @@ import {
 
 const PROMPT_SECTION = 'decision-trace'
 const PROJECTION_KEY = 'decisionTrace'
-// 5: the timeline can start at the session's own beginning, because the view
-// carries `startedAt` and the prompts that opened each turn.
-const PROJECTION_VERSION = 5
+// 6: user messages are read from `data` (their own shape), so prompts and the
+// "what was being asked" evidence are populated instead of empty.
+const PROJECTION_VERSION = 6
 
 const CATEGORIES = [
   'architecture',
