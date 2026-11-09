@@ -55,6 +55,8 @@ window.__ModuleLoader__.load({
         'detail.askedWhat': 'What was being asked',
         'detail.supersedes': 'Replaces',
         'detail.replacedBy': 'replaced by',
+        'agent.subagent': 'Subagent',
+        'agent.depth': 'depth',
         'card.label': 'Decision',
         'card.recording': 'recording',
         'card.rationale': 'Why',
@@ -105,6 +107,8 @@ window.__ModuleLoader__.load({
         'detail.askedWhat': 'Qué se estaba pidiendo',
         'detail.supersedes': 'Reemplaza a',
         'detail.replacedBy': 'reemplazada por',
+        'agent.subagent': 'Subagente',
+        'agent.depth': 'profundidad',
         'card.label': 'Decisión',
         'card.recording': 'registrando',
         'card.rationale': 'Por qué',
@@ -156,6 +160,7 @@ window.__ModuleLoader__.load({
 .dt-view-inner{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
 .dt-view-title{margin:0;font-size:16px;font-weight:600}
 .dt-view-body{margin:0;font-size:13px;line-height:1.6;color:var(--dsw-alias-label-secondary)}
+.dt-agent{margin:0 0 2px;font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--dsw-alias-brand-primary)}
 .dt-headrow{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .dt-count{font-size:12px;color:var(--dsw-alias-label-secondary)}
 .dt-list{display:flex;flex-direction:column;gap:8px;margin-top:4px}
@@ -596,9 +601,20 @@ window.__ModuleLoader__.load({
     }
 
     /** The same decisions the view shows, as a file the reader can keep. */
-    function decisionsMarkdown(decisions, sessionId) {
+    function decisionsMarkdown(decisions, sessionId, agent) {
       const out = ['# Decisions', '']
       if (typeof sessionId === 'string' && sessionId !== '') out.push(`Session: \`${sessionId}\`  `)
+      if (agent && typeof agent === 'object') {
+        const line = [
+          `Agent: ${agent.origin === 'subagent' ? 'subagent' : 'root'}`,
+          `depth ${Number(agent.depth) || 0}`,
+          typeof agent.preset === 'string' && agent.preset !== '' ? `preset ${agent.preset}` : null,
+          typeof agent.parent === 'string' && agent.parent !== '' ? `parent \`${agent.parent}\`` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')
+        out.push(`${line}  `)
+      }
       out.push(`Recorded: ${decisions.length}`, '')
       for (const decision of decisions) {
         const status = typeof decision.status === 'string' ? decision.status : 'proposed'
@@ -663,6 +679,11 @@ window.__ModuleLoader__.load({
       const projection = useProjection(PROJECTION_KEY)
       const decisions =
         projection && Array.isArray(projection.decisions) ? projection.decisions : []
+      // Which agent this session belongs to. Present from projection v4 on.
+      const agent = projection && projection.agent && typeof projection.agent === 'object'
+        ? projection.agent
+        : null
+      const isSubagent = agent !== null && agent.origin === 'subagent'
 
       const turnOn = () => {
         if (!activate) return
@@ -780,7 +801,7 @@ window.__ModuleLoader__.load({
                       onClick: () =>
                         downloadText(
                           `decisions-${props.sessionId ?? 'session'}.md`,
-                          decisionsMarkdown(decisions, props.sessionId),
+                          decisionsMarkdown(decisions, props.sessionId, agent),
                         ),
                     },
                     t('view.export'),
@@ -821,6 +842,19 @@ window.__ModuleLoader__.load({
           'div',
           { className: 'dt-view-inner' },
           header,
+          isSubagent
+            ? h(
+                'p',
+                { className: 'dt-agent' },
+                [
+                  t('agent.subagent'),
+                  `${t('agent.depth')} ${Number(agent.depth) || 0}`,
+                  typeof agent.preset === 'string' && agent.preset !== '' ? agent.preset : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · '),
+              )
+            : null,
           body,
           props.enabled ? null : h('div', { className: 'dt-actions' }, controls),
           props.enabled ? null : h('p', { className: 'dt-hint' }, t('off.hint')),

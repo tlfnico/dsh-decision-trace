@@ -15,8 +15,9 @@ import { z } from 'zod'
 const TOOL_NAME = 'decision_record'
 const PROMPT_SECTION = 'decision-trace'
 const PROJECTION_KEY = 'decisionTrace'
-// 3: pure fold (no clock), call-id parity, and `dangling` resolved in the fold.
-const PROJECTION_VERSION = 3
+// 4: the view reports which agent the session belongs to (origin, depth,
+// preset, parent), read from the session header at initialization.
+const PROJECTION_VERSION = 4
 
 const CATEGORIES = [
   'architecture',
@@ -157,10 +158,22 @@ const projectionStateSchema = z.object({
   decisions: z.array(projectedDecisionSchema),
   pending: z.array(pendingCallSchema),
   lastUser: z.object({ seq: z.number(), text: z.string() }).nullable(),
+  agent: z.object({
+    origin: z.string(),
+    depth: z.number(),
+    preset: z.string().nullable(),
+    parent: z.string().nullable(),
+  }),
 })
 
 const projectionViewSchema = z.object({
   decisions: z.array(projectedDecisionSchema),
+  agent: z.object({
+    origin: z.string(),
+    depth: z.number(),
+    preset: z.string().nullable(),
+    parent: z.string().nullable(),
+  }),
 })
 
 function userMessageText(message) {
@@ -264,12 +277,26 @@ function applyDecisionEvent(state, event) {
   return state
 }
 
-function initialDecisionState() {
-  return { decisions: [], pending: [], lastUser: null }
+/**
+ * Which agent the session belongs to. The header is the only durable source:
+ * a subagent's log does not record that it is one, and the parent's log does
+ * not record its children.
+ */
+function agentContextOf(header) {
+  return {
+    origin: header?.origin === 'subagent' ? 'subagent' : 'root',
+    depth: Number.isInteger(header?.delegationDepth) ? header.delegationDepth : 0,
+    preset: typeof header?.agentPreset === 'string' ? header.agentPreset : null,
+    parent: typeof header?.parentSession === 'string' ? header.parentSession : null,
+  }
 }
 
-function foldDecisions(events) {
-  let state = initialDecisionState()
+function initialState(header) {
+  return { decisions: [], pending: [], lastUser: null, agent: agentContextOf(header) }
+}
+
+function foldDecisions(events, header) {
+  let state = initialState(header)
   for (const event of events) state = applyDecisionEvent(state, event)
   return state
 }
@@ -325,11 +352,11 @@ export async function apply(ctx, config) {
       key: PROJECTION_KEY,
       stateVersion: PROJECTION_VERSION,
       stateSchema: projectionStateSchema,
-      init: initialDecisionState,
+      init: initialState,
       apply: applyDecisionEvent,
       wire: {
         viewSchema: projectionViewSchema,
-        view: state => ({ decisions: state.decisions }),
+        view: state => ({ decisions: state.decisions, agent: state.agent }),
       },
     })
   }
@@ -411,7 +438,7 @@ export async function apply(ctx, config) {
       const session = sessionOf(ctx, exec)
       // Same fold the projection uses, over the same events: the next id and
       // the published view cannot disagree.
-      const state = session ? foldDecisions(session.snapshotEvents()) : undefined
+      const state = session ? foldDecisions(session.snapshotEvents(), session.header) : undefined
 
       if (state && state.decisions.length >= maxDecisions) {
         throw new Error(

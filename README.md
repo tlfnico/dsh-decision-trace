@@ -19,6 +19,7 @@ An audit plugin that records without permission contradicts its own premise. Thi
 - Registers one tool, `decision_record`, with seven fields: `title`, `category`, `rationale`, `alternatives[]`, `status`, `supersedes`, `files[]`.
 - Assigns the visible ids (`d-1`, `d-2`, …) by folding the session log, so a reload, a fork, or a replay reconstructs the same sequence.
 - Shows each decision as a card where it was made, and as a timeline entry with relative time, status colour, and one-click evidence.
+- Reports which agent the session belongs to — root or subagent, delegation depth, preset — read from the session header, so a delegated session is never anonymous.
 - Exports the session's decisions as Markdown from the Decisions view.
 
 ## Install
