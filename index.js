@@ -24,9 +24,9 @@ import {
 
 const PROMPT_SECTION = 'decision-trace'
 const PROJECTION_KEY = 'decisionTrace'
-// 7: the prompt that opened the session survives the rolling cap, so the first
-// timeline node is always the session's own beginning.
-const PROJECTION_VERSION = 7
+// 8: decisions carry a weight, so a minor choice can be recorded without
+// competing with the ones that moved the course.
+const PROJECTION_VERSION = 8
 
 const CATEGORIES = [
   'architecture',
@@ -83,6 +83,12 @@ const PARAMETERS = {
       description:
         "Where the decision stands. Leave it at 'proposed' unless the user already accepted or rejected it.",
     },
+    weight: {
+      type: 'string',
+      enum: ['major', 'minor'],
+      description:
+        "How far the decision reached: 'major' when it moved the course, 'minor' when it refines an earlier decision without changing it. Defaults to 'major'.",
+    },
     supersedes: {
       type: 'string',
       description:
@@ -128,6 +134,7 @@ const projectedDecisionSchema = z.object({
   rationale: z.string(),
   alternatives: z.array(alternativeSchema),
   files: z.array(z.string()),
+  weight: z.string(),
   supersedes: z.string().nullable(),
   dangling: z.boolean(),
   callSeq: z.number(),
@@ -424,6 +431,7 @@ export async function apply(ctx, config) {
           rationale: asString(raw.rationale),
           alternatives: Array.isArray(raw.alternatives) ? raw.alternatives : [],
           files: Array.isArray(raw.files) ? raw.files : [],
+          weight: asString(raw.weight) === 'minor' ? 'minor' : 'major',
         }
         // Presentation meta must be lossless JSON: omit absent fields instead
         // of writing undefined.
@@ -455,6 +463,11 @@ export async function apply(ctx, config) {
       const status = asString(raw.status) || 'proposed'
       if (!STATUSES.includes(status)) {
         throw new Error(`status must be one of: ${STATUSES.join(', ')}`)
+      }
+
+      const weight = asString(raw.weight) || 'major'
+      if (weight !== 'major' && weight !== 'minor') {
+        throw new Error("weight must be 'major' or 'minor'")
       }
 
       const session = sessionOf(ctx, exec)
@@ -509,8 +522,10 @@ export async function apply(ctx, config) {
           text: [
             '## Recording decisions',
             '',
-            'A decision is a choice that changes the plan: what to build, which dependency to take, how data is shaped, which API to expose, a security tradeoff, a change of process. When you commit to one, record it with `decision_record` before you act on it.',
-            'Record it once, in the words of the moment, with the reason that settled it. Skip routine steps, defaults with no alternative, and anything you already recorded.',
+            'Record a decision when a choice would make someone ask "why is it like this?" later — and record it before you act on it.',
+            'That includes product and interface choices: what to show, where, how it behaves, what to hide. Not only architecture, dependencies, data and security. If the user asked for a change and you settled how it works, that is a decision.',
+            'Say how far it reached: `weight: major` when the course moved, `minor` when it refines something already decided. Minor ones still belong in the record — they are what makes the record honest — and they cost one line.',
+            'If you notice you already changed something without recording it, record it then. A gap in the record is worse than a late entry.',
           ].join('\n'),
         }),
       'decision-trace: system prompt',

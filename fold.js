@@ -93,6 +93,8 @@ function finalizedDecision(state, event, pending) {
     rationale: asString(recorded?.rationale) || asString(args.rationale),
     alternatives,
     files: Array.isArray(args.files) ? args.files.map(String) : [],
+    weight:
+      (asString(recorded?.weight) || asString(args.weight)) === 'minor' ? 'minor' : 'major',
     supersedes,
     dangling,
     callSeq: pending.seq,

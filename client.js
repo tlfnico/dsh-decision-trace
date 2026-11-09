@@ -47,6 +47,7 @@ window.__ModuleLoader__.load({
         'view.list': 'List',
         'view.export': 'Export .md',
         'view.prompts': 'Prompts',
+        'view.minorCount': '{n} minor',
         'timeline.start': 'Session started',
         'timeline.prompt': 'Prompt',
         'filter.clear': 'Clear filters',
@@ -109,6 +110,7 @@ window.__ModuleLoader__.load({
         'view.list': 'Lista',
         'view.export': 'Exportar .md',
         'view.prompts': 'Pedidos',
+        'view.minorCount': '{n} menores',
         'timeline.start': 'Sesión iniciada',
         'timeline.prompt': 'Pedido',
         'filter.clear': 'Limpiar filtros',
@@ -250,6 +252,9 @@ window.__ModuleLoader__.load({
 .dt-link{font-size:11px;color:var(--dsw-alias-state-warn-primary);white-space:nowrap}
 .dt-tl-body>.dt-detail{border-top:0;padding:2px 9px 10px;margin-top:0}
 .dt-dim{opacity:.72}
+.dt-minor{opacity:.88}
+.dt-minor .dt-tl-node{transform:scale(.72)}
+.dt-minor .dt-tl-title{font-weight:500}
 .dt-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .dt-button{font:inherit;font-size:13px;font-weight:500;cursor:pointer;border-radius:7px;padding:6px 13px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}
 .dt-button:hover{background:var(--dsw-alias-bg-layer-2)}
@@ -609,7 +614,9 @@ window.__ModuleLoader__.load({
         'div',
         {
           key: decision.id,
-          className: `dt-tl-item${status === 'superseded' || replacedBy ? ' dt-dim' : ''}`,
+          className: `dt-tl-item${status === 'superseded' || replacedBy ? ' dt-dim' : ''}${
+            decision.weight === 'minor' ? ' dt-minor' : ''
+          }`,
         },
         h('span', { className: 'dt-tl-rail', 'aria-hidden': true }),
         h('span', { className: `dt-tl-node dt-node-${status}`, 'aria-hidden': true }),
@@ -979,6 +986,13 @@ window.__ModuleLoader__.load({
                       ),
                   )
                 : null,
+              minorCount > 0
+                ? h(
+                    'span',
+                    { className: 'dt-count' },
+                    `· ${t('view.minorCount').split('{n}').join(String(minorCount))}`,
+                  )
+                : null,
             ),
             decisions.length
               ? h(
@@ -1037,6 +1051,7 @@ window.__ModuleLoader__.load({
       const toggle = decision => () =>
         setOpenId(openId === decision.id ? null : decision.id)
       const replacedBy = supersededIndex(decisions)
+      const minorCount = decisions.filter(entry => entry.weight === 'minor').length
 
       const chips = []
       if (filtered) {

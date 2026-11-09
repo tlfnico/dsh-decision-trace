@@ -18,7 +18,7 @@ An audit plugin that records without permission contradicts its own premise. Thi
 
 ## What it does
 
-- Registers one tool, `decision_record`, with seven fields: `title`, `category`, `rationale`, `alternatives[]`, `status`, `supersedes`, `files[]`.
+- Registers one tool, `decision_record`, with eight fields: `title`, `category`, `rationale`, `alternatives[]`, `status`, `weight`, `supersedes`, `files[]`.
 - Assigns the visible ids (`d-1`, `d-2`, …) by folding the session log, so a reload, a fork, or a replay reconstructs the same sequence.
 - Shows each decision as a card where it was made, and as a timeline entry with relative time, status colour, and one-click evidence.
 - Starts the timeline at the session's own beginning and interleaves the prompts that framed each decision, so the view reads as the session's story rather than a list with dates.
@@ -62,6 +62,7 @@ The interface language follows the Harness locale; English is the source diction
   "rationale": "A projection unit would need…", // required
   "alternatives": [{ "option": "…", "rejected_because": "…" }],
   "status": "accepted",                       // proposed | accepted | rejected | superseded
+  "weight": "major",                          // major moved the course; minor refines an earlier decision
   "supersedes": "d-3",                        // visible id of an earlier decision
   "files": ["src/index.ts"]
 }
@@ -73,6 +74,7 @@ Rules worth knowing:
 
 - **Ids are assigned, never chosen.** The next id is the highest recorded id plus one, so a rejected record takes no number and leaves no gap.
 - **`supersedes` is not a blocker.** An id that does not resolve is recorded anyway and shown as orphaned in the view.
+- **Minor decisions are first-class.** `weight: minor` keeps a small choice in the record without letting it compete with the ones that moved the course; the view dims it and counts it separately. The prompt section asks for product and interface choices too, not only architecture — a gap in the record is worse than a late entry.
 - **Calls are serialized.** Two records folding the same log at once would compute the same id.
 
 ## Guarantees

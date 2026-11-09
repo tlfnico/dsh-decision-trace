@@ -69,6 +69,29 @@ const record = (callSeq, callId, decision, options) => [
   resultEvent(callSeq + 1, callId, decision, options),
 ]
 
+test('weight defaults to major and minor is read from the record', () => {
+  const state = foldDecisions(
+    [
+      ...record(1, 'call-a', recorded('d-1')),
+      ...record(3, 'call-b', recorded('d-2', { weight: 'minor' })),
+    ],
+    header,
+  )
+  assert.equal(state.decisions[0].weight, 'major')
+  assert.equal(state.decisions[1].weight, 'minor')
+})
+
+test('a minor weight in the arguments survives a result that omits it', () => {
+  const state = foldDecisions(
+    [
+      callEvent(1, 'call-a', { title: 'a', category: 'api', rationale: 'r', weight: 'minor' }),
+      resultEvent(2, 'call-a', { id: 'd-1', title: 'a', status: 'accepted' }),
+    ],
+    header,
+  )
+  assert.equal(state.decisions[0].weight, 'minor')
+})
+
 test('the session start comes from the header and prompts become timeline nodes', () => {
   const state = foldDecisions(
     [userEvent(1, 'build me a plugin'), userEvent(5, 'now add filters')],
