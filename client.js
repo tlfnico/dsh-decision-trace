@@ -23,6 +23,7 @@ window.__ModuleLoader__.load({
     const VIEW_ID = 'decisions'
     const TOOL_NAME = 'decision_record'
     const STATUS_PATH = '/decision-trace/status'
+    const AGENTS_PATH = '/decision-trace/agents'
     const PROJECTION_KEY = 'decisionTrace'
 
     const messages = {
@@ -58,6 +59,10 @@ window.__ModuleLoader__.load({
         'agent.subagent': 'Subagent',
         'agent.root': 'Root agent',
         'agent.depth': 'depth',
+        'fleet.title': 'Agents in this tree',
+        'fleet.decisions': 'decisions',
+        'fleet.superseding': 'replacing',
+        'fleet.unknown': '—',
         'card.label': 'Decision',
         'card.recording': 'recording',
         'card.rationale': 'Why',
@@ -111,6 +116,9 @@ window.__ModuleLoader__.load({
         'agent.subagent': 'Subagente',
         'agent.root': 'Agente raíz',
         'agent.depth': 'profundidad',
+        'fleet.title': 'Agentes en este árbol',
+        'fleet.decisions': 'decisiones',
+        'fleet.superseding': 'reemplazan',
         'card.label': 'Decisión',
         'card.recording': 'registrando',
         'card.rationale': 'Por qué',
@@ -163,6 +171,17 @@ window.__ModuleLoader__.load({
 .dt-view-title{margin:0;font-size:16px;font-weight:600}
 .dt-view-body{margin:0;font-size:13px;line-height:1.6;color:var(--dsw-alias-label-secondary)}
 .dt-agent{margin:0 0 2px;font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--dsw-alias-brand-primary)}
+.dt-fleet{display:flex;flex-direction:column;gap:1px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;padding:9px 11px;background:var(--dsw-alias-bg-layer-1)}
+.dt-fleet-row{display:flex;align-items:center;gap:8px;font-size:12px;padding:3px 4px;border-radius:6px}
+.dt-fleet-row[data-open="true"]{cursor:pointer}
+.dt-fleet-row[data-open="true"]:hover{background:var(--dsw-alias-bg-layer-2)}
+.dt-fleet-node{color:var(--dsw-alias-label-secondary);font-size:11px;width:10px;flex:none}
+.dt-fleet-id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--dsw-alias-label-primary)}
+.dt-fleet-id[data-current="true"]{font-weight:700}
+.dt-fleet-origin{font-size:11px;color:var(--dsw-alias-label-secondary)}
+.dt-fleet-spacer{flex:1}
+.dt-fleet-count{font-size:11px;color:var(--dsw-alias-label-secondary);white-space:nowrap}
+.dt-fleet-sup{font-size:11px;color:var(--dsw-alias-state-warn-primary);white-space:nowrap}
 .dt-headrow{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .dt-count{font-size:12px;color:var(--dsw-alias-label-secondary)}
 .dt-list{display:flex;flex-direction:column;gap:8px;margin-top:4px}
@@ -667,6 +686,69 @@ window.__ModuleLoader__.load({
       }
     }
 
+    function shortId(id) {
+      const text = String(id ?? '')
+      const marker = text.lastIndexOf('-')
+      return marker >= 0 && marker < text.length - 1 ? text.slice(marker + 1, marker + 9) : text.slice(0, 8)
+    }
+
+    /**
+     * The session tree as counts. Content for each agent stays on that
+     * session's own projection; this table only says who is in the tree and
+     * how much each one recorded.
+     */
+    function FleetTable(props) {
+      const { agents, t, onOpen } = props
+      return h(
+        'div',
+        { className: 'dt-fleet' },
+        h(
+          'div',
+          { className: 'dt-section-title' },
+          `${t('fleet.title')} · ${agents.length}`,
+        ),
+        agents.map(agent =>
+          h(
+            'div',
+            {
+              key: agent.id,
+              className: 'dt-fleet-row',
+              'data-open': typeof onOpen === 'function',
+              title: String(agent.id),
+              style: { paddingLeft: `${Math.max(0, Number(agent.depth) || 0) * 14 + 4}px` },
+              onClick: typeof onOpen === 'function' ? () => onOpen(agent.id) : undefined,
+            },
+            h('span', { className: 'dt-fleet-node' }, Number(agent.depth) > 0 ? '└' : '●'),
+            h(
+              'span',
+              { className: 'dt-fleet-id', 'data-current': agent.current === true },
+              shortId(agent.id),
+            ),
+            h(
+              'span',
+              { className: 'dt-fleet-origin' },
+              agent.origin === 'subagent' ? t('agent.subagent') : t('agent.root'),
+            ),
+            h('span', { className: 'dt-fleet-spacer' }),
+            h(
+              'span',
+              { className: 'dt-fleet-count' },
+              Number.isInteger(agent.decisions)
+                ? `${agent.decisions} ${t('fleet.decisions')}`
+                : t('fleet.unknown'),
+            ),
+            Number(agent.superseding) > 0
+              ? h(
+                  'span',
+                  { className: 'dt-fleet-sup' },
+                  `${Number(agent.superseding)} ${t('fleet.superseding')}`,
+                )
+              : null,
+          ),
+        ),
+      )
+    }
+
     function DecisionsView(props) {
       const t = props.t
       const [state, setState] = React.useState({ status: 'idle', reason: '' })
@@ -686,6 +768,33 @@ window.__ModuleLoader__.load({
         ? projection.agent
         : null
       const isSubagent = agent !== null && agent.origin === 'subagent'
+
+      // The tree is topology plus counts; it is fetched, never folded here.
+      const [fleet, setFleet] = React.useState(null)
+      React.useEffect(() => {
+        if (!props.enabled || typeof fetch !== 'function') return undefined
+        const sessionId = typeof props.sessionId === 'string' ? props.sessionId : ''
+        if (sessionId === '') return undefined
+        let cancelled = false
+        fetch(`${AGENTS_PATH}?session=${encodeURIComponent(sessionId)}`, {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        })
+          .then(response => (response.ok ? response.json() : null))
+          .then(body => {
+            if (cancelled) return
+            const agents = body && Array.isArray(body.agents) ? body.agents : []
+            setFleet(
+              agents.map(row => ({ ...row, current: String(row.id) === sessionId })),
+            )
+          })
+          .catch(() => {
+            if (!cancelled) setFleet(null)
+          })
+        return () => {
+          cancelled = true
+        }
+      }, [props.enabled, props.sessionId, decisions.length])
 
       const turnOn = () => {
         if (!activate) return
@@ -857,6 +966,9 @@ window.__ModuleLoader__.load({
                   .join(' · '),
               )
             : null,
+          props.enabled && Array.isArray(fleet) && fleet.length > 1
+            ? h(FleetTable, { agents: fleet, t, onOpen: props.openSession })
+            : null,
           body,
           props.enabled ? null : h('div', { className: 'dt-actions' }, controls),
           props.enabled ? null : h('p', { className: 'dt-hint' }, t('off.hint')),
@@ -946,6 +1058,14 @@ window.__ModuleLoader__.load({
           ? () => layout.selectPanel('plugins')
           : undefined
 
+      // Navigate to another agent's session from the fleet table, when the
+      // build exposes session navigation.
+      const uiWorkspace = ctx.get('uiWorkspace')
+      const openSession =
+        uiWorkspace && typeof uiWorkspace.openSession === 'function'
+          ? id => uiWorkspace.openSession(id)
+          : undefined
+
       const resolved = await resolveMode(config)
       const enabled = resolved !== 'off'
 
@@ -965,6 +1085,7 @@ window.__ModuleLoader__.load({
               enabled,
               activate,
               openSettings,
+              openSession,
             }),
         ),
       )

@@ -295,6 +295,111 @@ function initialState(header) {
   return { decisions: [], pending: [], lastUser: null, agent: agentContextOf(header) }
 }
 
+/**
+ * Child session ids the provider still knows about, including children whose
+ * agent already finished. Best-effort: the entry shape is read defensively
+ * because the catalog type is not ours to depend on.
+ */
+async function durableChildIds(ctx, rootId) {
+  const subagents = ctx.get('subagents')
+  if (!subagents) return []
+  const collect = entries => {
+    if (!Array.isArray(entries)) return []
+    const ids = []
+    for (const entry of entries) {
+      const id = entry?.sessionId ?? entry?.id ?? entry?.childId ?? entry?.session?.id
+      if (typeof id === 'string' && id !== '') ids.push(id)
+    }
+    return ids
+  }
+  try {
+    if (typeof subagents.listDescendants === 'function') {
+      return collect(await subagents.listDescendants(rootId))
+    }
+    if (typeof subagents.listChildren === 'function') {
+      return collect(await subagents.listChildren(rootId))
+    }
+  } catch {
+    // Discovery is best-effort; the live store still answers.
+  }
+  return []
+}
+
+function countOf(handle, session) {
+  try {
+    const state = handle ? handle.stateOf(session) : undefined
+    if (state && Array.isArray(state.decisions)) {
+      return {
+        decisions: state.decisions.length,
+        superseding: state.decisions.filter(entry => entry.supersedes !== null).length,
+      }
+    }
+  } catch {
+    // An unreadable cell is reported as unknown rather than failing the tree.
+  }
+  return { decisions: null, superseding: null }
+}
+
+function agentTreeRows(ctx, rootId, handle, discovered) {
+  const sessions = ctx.get('sessions')
+  const list = sessions && typeof sessions.list === 'function' ? sessions.list() : []
+  const byId = new Map()
+  for (const session of list) byId.set(String(session.id), session)
+
+  const children = new Map()
+  for (const session of list) {
+    const parent = typeof session.header?.parentSession === 'string' ? session.header.parentSession : ''
+    if (parent === '') continue
+    if (!children.has(parent)) children.set(parent, [])
+    children.get(parent).push(session)
+  }
+
+  const root = byId.get(String(rootId))
+  if (root === undefined) return []
+
+  const rows = []
+  const seen = new Set()
+  const row = (id, session) => {
+    const header = session?.header
+    const context = agentContextOf(header)
+    const counts = session ? countOf(handle, session) : { decisions: null, superseding: null }
+    return {
+      id,
+      origin: context.origin,
+      depth: context.depth,
+      preset: context.preset,
+      decisions: counts.decisions,
+      superseding: counts.superseding,
+    }
+  }
+
+  const visit = (session, depth) => {
+    const id = String(session.id)
+    if (seen.has(id)) return
+    seen.add(id)
+    const entry = row(id, session)
+    rows.push({ ...entry, depth: Number.isInteger(entry.depth) && entry.depth > 0 ? entry.depth : depth })
+    for (const child of children.get(id) ?? []) visit(child, depth + 1)
+  }
+  visit(root, 0)
+
+  // Children the provider remembers but the live store does not carry: listed
+  // for topology, with unknown counts. A child with no live session has no
+  // header to read, so its origin comes from being a child at all.
+  for (const id of discovered) {
+    if (seen.has(id)) continue
+    seen.add(id)
+    const live = byId.get(id)
+    rows.push(
+      live
+        ? row(id, live)
+        : { ...row(id, undefined), origin: 'subagent', depth: 1, decisions: null, superseding: null },
+    )
+  }
+
+  return rows
+}
+
 function foldDecisions(events, header) {
   let state = initialState(header)
   for (const event of events) state = applyDecisionEvent(state, event)
@@ -305,6 +410,7 @@ export const name = 'dsh-decision-trace'
 export const inject = ['tools']
 
 const STATUS_PATH = '/decision-trace/status'
+const AGENTS_PATH = '/decision-trace/agents'
 
 export const Config = Schema.object({
   mode: Schema.union([Schema.const('off'), Schema.const('on')])
@@ -319,6 +425,10 @@ export const Config = Schema.object({
 
 export async function apply(ctx, config) {
   const mode = config?.mode === 'on' ? 'on' : 'off'
+
+  // Read by the fleet route once the unit is registered below; requests that
+  // arrive earlier simply see no counts.
+  let projectionHandle
 
   // The browser half is built from the client graph and never sees the row
   // config, so the mode reaches it through this route instead. It answers in
@@ -341,6 +451,34 @@ export async function apply(ctx, config) {
         }),
       'decision-trace: status route',
     )
+
+    // Topology and counts only — see agentTreeRows.
+    ctx.effect(
+      () =>
+        webServer.register({
+          kind: 'exact',
+          path: AGENTS_PATH,
+          resource: async request => {
+            let sessionId = ''
+            try {
+              sessionId = new URL(request.url, 'http://localhost').searchParams.get('session') ?? ''
+            } catch {
+              sessionId = ''
+            }
+            const discovered =
+              sessionId === '' ? [] : await durableChildIds(ctx, sessionId)
+            const agents = sessionId === '' ? [] : agentTreeRows(ctx, sessionId, projectionHandle, discovered)
+            return new Response(JSON.stringify({ session: sessionId, agents }), {
+              status: 200,
+              headers: {
+                'content-type': 'application/json',
+                'cache-control': 'no-store',
+              },
+            })
+          },
+        }),
+      'decision-trace: agents route',
+    )
   }
 
   if (mode !== 'on') return
@@ -348,7 +486,7 @@ export async function apply(ctx, config) {
   // The Decisions view reads this unit: the client never folds the log.
   const projections = ctx.get('sessionProjections')
   if (projections && typeof projections.register === 'function') {
-    await projections.register({
+    projectionHandle = await projections.register({
       key: PROJECTION_KEY,
       stateVersion: PROJECTION_VERSION,
       stateSchema: projectionStateSchema,
