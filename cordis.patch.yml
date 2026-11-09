@@ -1,0 +1,8 @@
+# Bundle patch layer: one row loads the package main entry as the Host half.
+# The `dsh.client` declaration makes the web app load ./client.js as the
+# browser half. `config` is intentionally empty: the plugin defaults to
+# `mode: off` until the user turns it on.
+- insert:
+    - id: dsh-decision-trace
+      name: dsh-decision-trace
+      config: {}

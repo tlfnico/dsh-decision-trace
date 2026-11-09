@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Decision trace",
+    "description": "Records agent decisions as inline chat cards and a per-session Decisions view, without adding session event types."
+  }
+}

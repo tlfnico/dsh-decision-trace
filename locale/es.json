@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Registro de decisiones",
+    "description": "Registra las decisiones del agente como tarjetas en el chat y como vista de Decisiones por sesión, sin agregar tipos de evento al log."
+  }
+}
