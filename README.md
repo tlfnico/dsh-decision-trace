@@ -10,6 +10,8 @@ A DeepSeek Harness plugin that records the decisions an agent makes — as a car
       The status route exposes only the mode…
 ```
 
+![The Decisions view: session tree with two agents, status and category filters, and the timeline where d-7 is dimmed and marked as replaced by d-8](docs/decisions.png)
+
 ## Why
 
 An audit plugin that records without permission contradicts its own premise. This one is **off by default**: while it is off, it registers no tool and no prompt section, so it costs nothing per request. It stays visible anyway — the Decisions view exists in both states, so it is discoverable before it is enabled.
