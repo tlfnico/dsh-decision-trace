@@ -46,6 +46,7 @@ window.__ModuleLoader__.load({
         'view.timeline': 'Timeline',
         'view.list': 'List',
         'view.export': 'Export .md',
+        'filter.clear': 'Clear filters',
         'view.emptyTitle': 'No decisions yet',
         'view.emptyBody':
           'The agent records a decision with decision_record when a choice changes the plan. It appears here and as a card in the conversation.',
@@ -103,6 +104,7 @@ window.__ModuleLoader__.load({
         'view.timeline': 'Línea de tiempo',
         'view.list': 'Lista',
         'view.export': 'Exportar .md',
+        'filter.clear': 'Limpiar filtros',
         'view.emptyTitle': 'Todavía no hay decisiones',
         'view.emptyBody':
           'El agente registra una decisión con decision_record cuando una elección cambia el rumbo. Aparece acá y como tarjeta en la conversación.',
@@ -203,6 +205,10 @@ window.__ModuleLoader__.load({
 .dt-mode button[aria-pressed="true"]{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-weight:500}
 .dt-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .dt-button-small{font-size:12px;padding:4px 10px}
+.dt-filters{display:flex;flex-wrap:wrap;gap:6px}
+.dt-chip{font:inherit;font-size:11px;padding:2px 9px;border-radius:999px;cursor:pointer;border:1px solid var(--dsw-alias-border-l1);background:transparent;color:var(--dsw-alias-label-secondary)}
+.dt-chip:hover{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l2)}
+.dt-chip[aria-pressed="true"]{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l2);font-weight:500}
 .dt-timeline{display:flex;flex-direction:column;margin-top:6px}
 .dt-tl-item{position:relative;padding-left:28px}
 .dt-tl-rail{position:absolute;left:8px;top:0;bottom:0;width:2px;background:var(--dsw-alias-border-l1)}
@@ -754,6 +760,7 @@ window.__ModuleLoader__.load({
       const [state, setState] = React.useState({ status: 'idle', reason: '' })
       const [openId, setOpenId] = React.useState(null)
       const [layout, setLayout] = React.useState('timeline')
+      const [filter, setFilter] = React.useState({ status: '', category: '' })
       const { activate, openSettings } = props
 
       // The projection reaches the Client already folded by the Host; the view
@@ -874,7 +881,13 @@ window.__ModuleLoader__.load({
                 ? h(
                     'span',
                     { className: 'dt-count' },
-                    t('view.count').split('{n}').join(String(decisions.length)),
+                    t('view.count')
+                      .split('{n}')
+                      .join(
+                        filtered
+                          ? `${visible.length} / ${decisions.length}`
+                          : String(decisions.length),
+                      ),
                   )
                 : null,
             ),
@@ -926,20 +939,86 @@ window.__ModuleLoader__.load({
         setOpenId(openId === decision.id ? null : decision.id)
       const replacedBy = supersededIndex(decisions)
 
+      const statuses = [...new Set(decisions.map(entry => entry.status).filter(Boolean))]
+      const categories = [...new Set(decisions.map(entry => entry.category).filter(Boolean))]
+      const filtered = filter.status !== '' || filter.category !== ''
+      const visible = filtered
+        ? decisions.filter(
+            entry =>
+              (filter.status === '' || entry.status === filter.status) &&
+              (filter.category === '' || entry.category === filter.category),
+          )
+        : decisions
+
+      const chips = []
+      if (filtered) {
+        chips.push(
+          h(
+            'button',
+            {
+              key: 'all',
+              type: 'button',
+              className: 'dt-chip',
+              'aria-pressed': false,
+              onClick: () => setFilter({ status: '', category: '' }),
+            },
+            t('filter.clear'),
+          ),
+        )
+      }
+      for (const status of statuses) {
+        chips.push(
+          h(
+            'button',
+            {
+              key: `s-${status}`,
+              type: 'button',
+              className: `dt-chip dt-chip-${status}`,
+              'aria-pressed': filter.status === status,
+              onClick: () =>
+                setFilter(current => ({
+                  ...current,
+                  status: current.status === status ? '' : status,
+                })),
+            },
+            t(`status.${status}`),
+          ),
+        )
+      }
+      for (const category of categories) {
+        chips.push(
+          h(
+            'button',
+            {
+              key: `c-${category}`,
+              type: 'button',
+              className: 'dt-chip',
+              'aria-pressed': filter.category === category,
+              onClick: () =>
+                setFilter(current => ({
+                  ...current,
+                  category: current.category === category ? '' : category,
+                })),
+            },
+            t(`category.${category}`),
+          ),
+        )
+      }
+
       const body =
         props.enabled && decisions.length
           ? layout === 'timeline'
             ? h(
                 'div',
                 { className: 'dt-timeline' },
-                decisions.map(decision =>
+                visible.map(decision =>
                   timelineItem(decision, openId === decision.id, toggle(decision), t, replacedBy),
                 ),
               )
             : h(
                 'div',
                 { className: 'dt-list' },
-                decisions.map(decision =>
+                visible.map(decision =>
                   decisionRow(decision, openId === decision.id, toggle(decision), t),
                 ),
               )
@@ -968,6 +1047,9 @@ window.__ModuleLoader__.load({
             : null,
           props.enabled && Array.isArray(fleet) && fleet.length > 1
             ? h(FleetTable, { agents: fleet, t, onOpen: props.openSession })
+            : null,
+          props.enabled && chips.length > 1
+            ? h('div', { className: 'dt-filters' }, chips)
             : null,
           body,
           props.enabled ? null : h('div', { className: 'dt-actions' }, controls),

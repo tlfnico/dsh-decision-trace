@@ -16,6 +16,7 @@
   },
   "files": [
     "index.js",
+    "fold.js",
     "client.js",
     "cordis.patch.yml",
     "locale/*.json",
@@ -31,7 +32,11 @@
     "decision",
     "audit"
   ],
+  "author": "Eduardo Nicolas Diaz <diaznicolas1704@gmail.com> (@tlfnico)",
   "license": "MIT",
+  "scripts": {
+    "test": "node --test"
+  },
   "peerDependencies": {
     "@deepseek-ai/schemastery": "^3.19.0",
     "zod": "^4.4.3"

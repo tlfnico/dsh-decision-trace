@@ -76,6 +76,17 @@ Rules worth knowing:
 - **The log is the only source of truth.** There is no plugin storage. The Decisions view and the Markdown export both derive from the same fold the tool uses to pick ids.
 - **Replay is stable.** The fold is pure: no clock, no module state, no random. The same log produces the same timeline and the same meta.
 
+### The two routes, and what they do not carry
+
+The browser half cannot read the row config or the log, so the host serves two exact paths:
+
+| Route | Answers |
+|---|---|
+| `GET /decision-trace/status` | `{plugin, mode}` — which state the plugin is in |
+| `GET /decision-trace/agents?session=<id>` | the session tree: ids, delegation depth, preset, and two counts |
+
+Neither carries session content — no titles, no rationale, no messages — and the shipped Web composition binds to loopback. Everything a reader actually sees comes from the session projection, which the client reads through the platform's authenticated session transport. A decision to keep those routes content-free is recorded in the plugin's own log (see `d-6` and `d-9` in the demo session).
+
 ## How it is put together
 
 | Piece | Role |
