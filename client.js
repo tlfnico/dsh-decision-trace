@@ -865,6 +865,19 @@ window.__ModuleLoader__.load({
         ),
       )
 
+      // Filter state must be resolved before the header, which reports how
+      // many decisions the current filter leaves visible.
+      const statuses = [...new Set(decisions.map(entry => entry.status).filter(Boolean))]
+      const categories = [...new Set(decisions.map(entry => entry.category).filter(Boolean))]
+      const filtered = filter.status !== '' || filter.category !== ''
+      const visible = filtered
+        ? decisions.filter(
+            entry =>
+              (filter.status === '' || entry.status === filter.status) &&
+              (filter.category === '' || entry.category === filter.category),
+          )
+        : decisions
+
       const header = props.enabled
         ? h(
             'div',
@@ -938,17 +951,6 @@ window.__ModuleLoader__.load({
       const toggle = decision => () =>
         setOpenId(openId === decision.id ? null : decision.id)
       const replacedBy = supersededIndex(decisions)
-
-      const statuses = [...new Set(decisions.map(entry => entry.status).filter(Boolean))]
-      const categories = [...new Set(decisions.map(entry => entry.category).filter(Boolean))]
-      const filtered = filter.status !== '' || filter.category !== ''
-      const visible = filtered
-        ? decisions.filter(
-            entry =>
-              (filter.status === '' || entry.status === filter.status) &&
-              (filter.category === '' || entry.category === filter.category),
-          )
-        : decisions
 
       const chips = []
       if (filtered) {
