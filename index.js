@@ -24,9 +24,9 @@ import {
 
 const PROMPT_SECTION = 'decision-trace'
 const PROJECTION_KEY = 'decisionTrace'
-// 9: prompt text drops the runtime context the Harness appends to a user
-// message, so the record keeps only what the user asked.
-const PROJECTION_VERSION = 9
+// 10: the runtime-context cut also covers a message that opens with the
+// marker, which is how the Harness sends it on some turns.
+const PROJECTION_VERSION = 10
 
 const CATEGORIES = [
   'architecture',

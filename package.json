@@ -1,6 +1,6 @@
 {
   "name": "dsh-decision-trace",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Records agent decisions as inline chat cards and a per-session Decisions view, with no new session event types.",
   "type": "module",
   "main": "index.js",

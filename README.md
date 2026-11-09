@@ -68,7 +68,7 @@ The interface language follows the Harness locale; English is the source diction
 }
 ```
 
-It returns `{ "id", "title", "status" }` — bounded on purpose. Everything the interface needs that the model does not (the full record, the resolved reference) travels in the result's presentation meta, which is part of the session log like any other tool result.
+It returns `{ "id", "title", "status" }` — bounded on purpose. Everything the interface needs that the model does not (the full record, and the raw reference to the decision it replaces) travels in the result's presentation meta, which is part of the session log like any other tool result. Resolving that reference against earlier decisions is the fold's job, not the meta's.
 
 Rules worth knowing:
 
@@ -102,7 +102,8 @@ Neither carries session content — no titles, no rationale, no messages — and
 | `index.js` | Tool, prompt section, session projection, the two routes |
 | `client.js` | Inline card, Decisions view (timeline + list + detail + filters), fleet table, Markdown export, `en`/`es` dictionaries |
 | `cordis.patch.yml` | One row, `config: {}` — off by default |
-| `test/fold.test.js` | Fourteen cases over the fold's rules |
+| `test/fold.test.js` | 22 cases over the fold's rules |
+| `test/client.render.test.js` | 3 cases that execute the view with a fake React and a fake module loader — no browser, no dependencies |
 
 Three seams, no more:
 
@@ -119,11 +120,11 @@ Because the browser half is built from the client graph and does not receive the
 No build step and no dependencies of its own — two peers, resolved from the Harness installation.
 
 ```powershell
-node --test          # the fold suite, 14 cases
+node --test          # 25 cases: the fold and the view's render
 node --check index.js fold.js client.js
 ```
 
-`node --test` needs nothing installed: `fold.js` has no imports, which is why the model can be tested without a Harness. CI runs the same two commands on every push.
+`node --test` needs nothing installed: `fold.js` has no imports, which is why the model can be tested without a Harness, and the render test runs the view against a fake React. CI runs the same two commands on every push.
 
 ## Limits of v0.1
 

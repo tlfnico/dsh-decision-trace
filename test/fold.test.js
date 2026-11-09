@@ -115,6 +115,29 @@ test('the injected runtime context is not part of the prompt', () => {
   assert.equal(state.lastUser.text, 'build me a plugin')
 })
 
+test('injected context is dropped in all three message shapes', () => {
+  const contextOnly =
+    'Time sampled while preparing turn 40, step 1: 2026-11-09T19:44:56-03:00[America/Buenos_Aires]'
+  const textThenContext = `decime esto\n\n${contextOnly}`
+  const contextThenText = `${contextOnly}\ndecime esto`
+
+  // Only machine text: no node at all, and no evidence to attribute.
+  const only = foldDecisions([userEvent(1, contextOnly)], header)
+  assert.deepEqual(only.prompts, [])
+  assert.equal(only.lastUser.text, '')
+
+  // The shape that already worked.
+  const after = foldDecisions([userEvent(1, textThenContext)], header)
+  assert.equal(after.prompts[0].text, 'decime esto')
+  assert.equal(after.lastUser.text, 'decime esto')
+
+  // Context first: today unreachable, and we drop it rather than attribute
+  // machine text to the user.
+  const before = foldDecisions([userEvent(1, contextThenText)], header)
+  assert.deepEqual(before.prompts, [])
+  assert.equal(before.lastUser.text, '')
+})
+
 test('a prompt with no text opens a turn but adds no timeline node', () => {
   const state = foldDecisions([userEvent(1, '')], header)
   assert.equal(state.lastUser.seq, 1)

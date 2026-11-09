@@ -72,7 +72,7 @@ Optional, if the audience is technical:
 
 ## Questions you will get
 
-**"Does this cost tokens?"** While off, nothing. While on, one tool schema of seven fields and a short prompt section per request.
+**"Does this cost tokens?"** While off, nothing. While on, one tool schema of eight fields and a short prompt section per request.
 
 **"What stops the agent from recording trivia?"** The prompt section asks for decisions that changed the course, and `maxDecisions` caps a session at 200. It is a policy, not a guarantee — precision measurement is the next milestone.
 

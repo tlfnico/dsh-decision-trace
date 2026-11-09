@@ -112,9 +112,17 @@ function finalizedDecision(state, event, pending) {
  * unchanged state costs nothing downstream.
  */
 /**
- * The Harness appends its own runtime context to the user's message. It is
- * machine metadata, not something the user asked, so the record keeps only
- * what the user wrote.
+ * The Harness appends its own runtime context to the user's message, and on
+ * some turns the message is nothing but that context. Either way it is machine
+ * metadata, not something the user asked, so the record keeps only what the
+ * user wrote.
+ *
+ * `index >= 0` matters: a message that *starts* with the marker is the case
+ * that shipped broken, because the earlier `index > 0` skipped it. If a future
+ * Harness ever puts real text after the context, that text is dropped rather
+ * than shown as if the user had asked for a timestamp — losing a line of
+ * context beats attributing machine text to a person, and the tests pin the
+ * three shapes so the choice is visible.
  */
 const RUNTIME_MARKERS = ['Time sampled while preparing', 'Current runtime context']
 
@@ -123,7 +131,7 @@ function userText(message) {
   let cut = raw.length
   for (const marker of RUNTIME_MARKERS) {
     const index = raw.indexOf(marker)
-    if (index > 0 && index < cut) cut = index
+    if (index >= 0 && index < cut) cut = index
   }
   return raw.slice(0, cut).trim()
 }

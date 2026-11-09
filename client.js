@@ -569,7 +569,7 @@ window.__ModuleLoader__.load({
     }
 
     function relativeTime(at) {
-      if (typeof at !== 'number' || !Number.isFinite(at)) return ''
+      if (typeof at !== 'number' || !Number.isFinite(at) || at <= 0) return ''
       const delta = at - Date.now()
       try {
         const format = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
@@ -587,7 +587,7 @@ window.__ModuleLoader__.load({
     }
 
     function absoluteTime(at) {
-      if (typeof at !== 'number' || !Number.isFinite(at)) return ''
+      if (typeof at !== 'number' || !Number.isFinite(at) || at <= 0) return ''
       try {
         return new Date(at).toLocaleString()
       } catch {
@@ -653,7 +653,7 @@ window.__ModuleLoader__.load({
       )
     }
 
-    /** The same decisions the view shows, as a file the reader can keep. */
+    /** The decisions the view is showing right now, as a file the reader can keep. */
     function decisionsMarkdown(decisions, sessionId, agent) {
       const out = ['# Decisions', '']
       if (typeof sessionId === 'string' && sessionId !== '') out.push(`Session: \`${sessionId}\`  `)
@@ -1031,7 +1031,7 @@ window.__ModuleLoader__.load({
                       onClick: () =>
                         downloadText(
                           `decisions-${props.sessionId ?? 'session'}.md`,
-                          decisionsMarkdown(decisions, props.sessionId, agent),
+                          decisionsMarkdown(visible, props.sessionId, agent),
                         ),
                     },
                     t('view.export'),
