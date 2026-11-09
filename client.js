@@ -46,6 +46,8 @@ window.__ModuleLoader__.load({
         'view.timeline': 'Timeline',
         'view.list': 'List',
         'view.export': 'Export .md',
+        'timeline.start': 'Session started',
+        'timeline.prompt': 'Prompt',
         'filter.clear': 'Clear filters',
         'view.emptyTitle': 'No decisions yet',
         'view.emptyBody':
@@ -105,6 +107,8 @@ window.__ModuleLoader__.load({
         'view.timeline': 'Línea de tiempo',
         'view.list': 'Lista',
         'view.export': 'Exportar .md',
+        'timeline.start': 'Sesión iniciada',
+        'timeline.prompt': 'Pedido',
         'filter.clear': 'Limpiar filtros',
         'view.emptyTitle': 'Todavía no hay decisiones',
         'view.emptyBody':
@@ -222,6 +226,11 @@ window.__ModuleLoader__.load({
 .dt-tl-item:last-child .dt-tl-rail{bottom:auto;height:20px}
 .dt-tl-item:only-child .dt-tl-rail{display:none}
 .dt-tl-node{position:absolute;left:3px;top:15px;width:12px;height:12px;border-radius:50%;background:var(--dsw-alias-state-idle-primary)}
+.dt-tl-dot{position:absolute;left:5px;top:17px;width:8px;height:8px;border-radius:50%;background:var(--dsw-alias-bg-base);border:2px solid var(--dsw-alias-border-l2);box-sizing:content-box}
+.dt-prompt{display:flex;flex-direction:column;gap:3px;padding:6px 9px}
+.dt-prompt-head{display:flex;align-items:center;gap:8px}
+.dt-prompt-label{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--dsw-alias-label-secondary)}
+.dt-prompt-text{font-size:12px;line-height:1.5;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere;white-space:pre-wrap}
 .dt-node-accepted{background:var(--dsw-alias-state-success-primary)}
 .dt-node-rejected{background:var(--dsw-alias-state-error-primary)}
 .dt-node-proposed{background:var(--dsw-alias-state-idle-primary)}
@@ -764,6 +773,36 @@ window.__ModuleLoader__.load({
       )
     }
 
+    /** A prompt or the session's own beginning: context, not a decision. */
+    function contextItem(item, t) {
+      const label = item.kind === 'start' ? t('timeline.start') : t('timeline.prompt')
+      return h(
+        'div',
+        { key: `ctx-${item.kind}-${item.seq}`, className: 'dt-tl-item dt-tl-context' },
+        h('span', { className: 'dt-tl-rail', 'aria-hidden': true }),
+        h('span', { className: 'dt-tl-dot', 'aria-hidden': true }),
+        h(
+          'div',
+          { className: 'dt-tl-body' },
+          h(
+            'div',
+            { className: 'dt-prompt' },
+            h(
+              'div',
+              { className: 'dt-prompt-head' },
+              h('span', { className: 'dt-prompt-label' }, label),
+              h(
+                'span',
+                { className: 'dt-time', title: absoluteTime(item.at) },
+                relativeTime(item.at),
+              ),
+            ),
+            item.text ? h('div', { className: 'dt-prompt-text' }, String(item.text)) : null,
+          ),
+        ),
+      )
+    }
+
     function DecisionsView(props) {
       const t = props.t
       const [state, setState] = React.useState({ status: 'idle', reason: '' })
@@ -1016,14 +1055,53 @@ window.__ModuleLoader__.load({
         )
       }
 
+      // The timeline is the session's story: where it began, what was asked,
+      // and what was decided. Filters narrow it to decisions only, because a
+      // prompt whose decision was filtered out would read as a dangling line.
+      const prompts = projection && Array.isArray(projection.prompts) ? projection.prompts : []
+      const startedAt =
+        projection && typeof projection.startedAt === 'number' ? projection.startedAt : 0
+      const [headPrompt, ...laterPrompts] = prompts
+      const timelineNodes = []
+      if (!filtered) {
+        if (startedAt > 0) {
+          timelineNodes.push({
+            kind: 'start',
+            seq: -1,
+            at: startedAt,
+            text: headPrompt ? String(headPrompt.text) : '',
+          })
+        }
+        for (const prompt of headPrompt ? laterPrompts : []) {
+          timelineNodes.push({
+            kind: 'prompt',
+            seq: Number(prompt.seq) || 0,
+            at: Number(prompt.at) || 0,
+            text: String(prompt.text),
+          })
+        }
+      }
+      for (const decision of visible) {
+        timelineNodes.push({ kind: 'decision', seq: Number(decision.callSeq) || 0, decision })
+      }
+      timelineNodes.sort((left, right) => left.seq - right.seq)
+
       const body =
         props.enabled && decisions.length
           ? layout === 'timeline'
             ? h(
                 'div',
                 { className: 'dt-timeline' },
-                visible.map(decision =>
-                  timelineItem(decision, openId === decision.id, toggle(decision), t, replacedBy),
+                timelineNodes.map(node =>
+                  node.kind === 'decision'
+                    ? timelineItem(
+                        node.decision,
+                        openId === node.decision.id,
+                        toggle(node.decision),
+                        t,
+                        replacedBy,
+                      )
+                    : contextItem(node, t),
                 ),
               )
             : h(

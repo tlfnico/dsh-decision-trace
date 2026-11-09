@@ -24,9 +24,9 @@ import {
 
 const PROMPT_SECTION = 'decision-trace'
 const PROJECTION_KEY = 'decisionTrace'
-// 4: the view reports which agent the session belongs to (origin, depth,
-// preset, parent), read from the session header at initialization.
-const PROJECTION_VERSION = 4
+// 5: the timeline can start at the session's own beginning, because the view
+// carries `startedAt` and the prompts that opened each turn.
+const PROJECTION_VERSION = 5
 
 const CATEGORIES = [
   'architecture',
@@ -145,6 +145,12 @@ const pendingCallSchema = z.object({
   args: z.unknown(),
 })
 
+const promptSchema = z.object({
+  seq: z.number(),
+  at: z.number(),
+  text: z.string(),
+})
+
 const projectionStateSchema = z.object({
   decisions: z.array(projectedDecisionSchema),
   pending: z.array(pendingCallSchema),
@@ -155,6 +161,8 @@ const projectionStateSchema = z.object({
     preset: z.string().nullable(),
     parent: z.string().nullable(),
   }),
+  startedAt: z.number(),
+  prompts: z.array(promptSchema),
 })
 
 const projectionViewSchema = z.object({
@@ -165,6 +173,8 @@ const projectionViewSchema = z.object({
     preset: z.string().nullable(),
     parent: z.string().nullable(),
   }),
+  startedAt: z.number(),
+  prompts: z.array(promptSchema),
 })
 
 /**
@@ -360,7 +370,12 @@ export async function apply(ctx, config) {
       apply: applyDecisionEvent,
       wire: {
         viewSchema: projectionViewSchema,
-        view: state => ({ decisions: state.decisions, agent: state.agent }),
+        view: state => ({
+          decisions: state.decisions,
+          agent: state.agent,
+          startedAt: state.startedAt,
+          prompts: state.prompts,
+        }),
       },
     })
   }

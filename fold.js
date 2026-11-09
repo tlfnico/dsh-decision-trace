@@ -15,6 +15,9 @@
 
 export const TOOL_NAME = 'decision_record'
 
+/** Prompts kept for the timeline; the head of the session is the interesting one. */
+const PROMPT_LIMIT = 40
+
 export function asString(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
@@ -45,7 +48,16 @@ export function agentContextOf(header) {
 }
 
 export function initialState(header) {
-  return { decisions: [], pending: [], lastUser: null, agent: agentContextOf(header) }
+  return {
+    decisions: [],
+    pending: [],
+    lastUser: null,
+    agent: agentContextOf(header),
+    // The session's own beginning, so the timeline can start before the first
+    // decision instead of floating.
+    startedAt: typeof header?.createdAt === 'number' ? header.createdAt : 0,
+    prompts: [],
+  }
 }
 
 function finalizedDecision(state, event, pending) {
@@ -97,7 +109,17 @@ function finalizedDecision(state, event, pending) {
 export function applyDecisionEvent(state, event) {
   if (event.type === 'user/message') {
     const text = userMessageText(event.data?.message).slice(0, 200)
-    return { ...state, lastUser: { seq: event.seq, text } }
+    const next = { ...state, lastUser: { seq: event.seq, text } }
+    // A message with no text still opens a turn, but it makes a poor timeline
+    // node, so only readable prompts are kept.
+    if (text === '') return next
+    return {
+      ...next,
+      prompts: [
+        ...state.prompts,
+        { seq: event.seq, at: typeof event.time === 'number' ? event.time : 0, text },
+      ].slice(-PROMPT_LIMIT),
+    }
   }
 
   if (event.type === 'tool/call') {

@@ -67,6 +67,35 @@ const record = (callSeq, callId, decision, options) => [
   resultEvent(callSeq + 1, callId, decision, options),
 ]
 
+test('the session start comes from the header and prompts become timeline nodes', () => {
+  const state = foldDecisions(
+    [userEvent(1, 'build me a plugin'), userEvent(5, 'now add filters')],
+    { ...header, createdAt: 1700000000000 },
+  )
+  assert.equal(state.startedAt, 1700000000000)
+  assert.deepEqual(
+    state.prompts.map(prompt => [prompt.seq, prompt.at, prompt.text]),
+    [
+      [1, 501, 'build me a plugin'],
+      [5, 505, 'now add filters'],
+    ],
+  )
+})
+
+test('a prompt with no text opens a turn but adds no timeline node', () => {
+  const state = foldDecisions([userEvent(1, '')], header)
+  assert.equal(state.lastUser.seq, 1)
+  assert.deepEqual(state.prompts, [])
+})
+
+test('prompts are bounded', () => {
+  const events = []
+  for (let seq = 1; seq <= 60; seq += 1) events.push(userEvent(seq, `prompt ${seq}`))
+  const state = foldDecisions(events, header)
+  assert.equal(state.prompts.length, 40)
+  assert.equal(state.prompts[0].text, 'prompt 21')
+})
+
 test('an empty log keeps the agent context and no decisions', () => {
   const state = foldDecisions([], header)
   assert.deepEqual(state.decisions, [])
