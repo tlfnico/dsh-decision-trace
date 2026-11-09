@@ -20,6 +20,8 @@ An audit plugin that records without permission contradicts its own premise. Thi
 - Assigns the visible ids (`d-1`, `d-2`, …) by folding the session log, so a reload, a fork, or a replay reconstructs the same sequence.
 - Shows each decision as a card where it was made, and as a timeline entry with relative time, status colour, and one-click evidence.
 - Reports which agent the session belongs to — root or subagent, delegation depth, preset — read from the session header, so a delegated session is never anonymous.
+- Lists the session tree with a decision count per agent, and opens any of them, so a delegated fleet is visible without leaving the view.
+- Filters the timeline by status and category, and clusters supersession: a replaced decision dims and names the one that replaced it.
 - Exports the session's decisions as Markdown from the Decisions view.
 
 ## Install
@@ -91,9 +93,11 @@ Neither carries session content — no titles, no rationale, no messages — and
 
 | Piece | Role |
 |---|---|
-| `index.js` | Tool, prompt section, session projection, one status route |
-| `client.js` | Inline card, Decisions view (timeline + list + detail), Markdown export, `en`/`es` dictionaries |
+| `fold.js` | The whole decision model, as one pure fold with no imports: ids, supersession, evidence, agent context |
+| `index.js` | Tool, prompt section, session projection, the two routes |
+| `client.js` | Inline card, Decisions view (timeline + list + detail + filters), fleet table, Markdown export, `en`/`es` dictionaries |
 | `cordis.patch.yml` | One row, `config: {}` — off by default |
+| `test/fold.test.js` | Fourteen cases over the fold's rules |
 
 Three seams, no more:
 
@@ -105,10 +109,23 @@ The session projection (`decisionTrace`) publishes the same fold as a client-vis
 
 Because the browser half is built from the client graph and does not receive the row config, the mode reaches it through one exact route, `GET /decision-trace/status`, which answers in both states and exposes nothing but the mode.
 
+## Development
+
+No build step and no dependencies of its own — two peers, resolved from the Harness installation.
+
+```powershell
+node --test          # the fold suite, 14 cases
+node --check index.js fold.js client.js
+```
+
+`node --test` needs nothing installed: `fold.js` has no imports, which is why the model can be tested without a Harness. CI runs the same two commands on every push.
+
 ## Limits of v0.1
 
 - No automatic detection of decisions — that is the next milestone and the one that needs inference.
-- No cross-session aggregation, no editing from the interface, no comparison between sessions.
+- The fleet table shows the tree and per-agent counts; it does not merge other agents' timelines into one list.
+- No editing from the interface, no comparison between sessions.
+- A child whose agent already finished is listed with unknown counts, because its session is no longer live.
 - No diffs: the card references the tool that changed a file instead of duplicating its diff.
 
 ## License

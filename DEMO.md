@@ -2,6 +2,8 @@
 
 **Three minutes, one session, no slides.** The plugin demonstrates itself: the decisions used to build it are the content.
 
+This is not a presentation and there is nothing to memorize. It is a screen walkthrough with two sentences per stop. Read it once before you show it; if nobody asks you to show it, skip it — the repository is the artifact.
+
 ## Before you start (30 seconds, off camera)
 
 1. `mode: "on"` in the profile patch, page reloaded once.
@@ -39,6 +41,11 @@ Click one entry.
 If a decision replaced another, point at the dimmed row:
 
 > "This one was superseded. The chain is in the log, so the view can show it."
+
+Two optional stops, only if the session has them — one line each, do not linger:
+
+- **Filters.** Click `accepted`, then a category. > "The tree gets noisy at twenty decisions; the chips cut it down."
+- **Agents.** If the table above the timeline has more than one row: > "This session ran a subagent. Here is its tree, with how many decisions each agent recorded." Click a row to jump to that session.
 
 ## 2:15 — The export
 
