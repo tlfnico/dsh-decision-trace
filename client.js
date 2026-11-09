@@ -60,6 +60,7 @@ window.__ModuleLoader__.load({
         'agent.subagent': 'Subagent',
         'agent.root': 'Root agent',
         'agent.depth': 'depth',
+        'agent.backToParent': 'Back to parent',
         'fleet.title': 'Agents in this tree',
         'fleet.decisions': 'decisions',
         'fleet.superseding': 'replacing',
@@ -118,6 +119,7 @@ window.__ModuleLoader__.load({
         'agent.subagent': 'Subagente',
         'agent.root': 'Agente raíz',
         'agent.depth': 'profundidad',
+        'agent.backToParent': 'Volver al padre',
         'fleet.title': 'Agentes en este árbol',
         'fleet.decisions': 'decisiones',
         'fleet.superseding': 'reemplazan',
@@ -172,7 +174,11 @@ window.__ModuleLoader__.load({
 .dt-view-inner{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
 .dt-view-title{margin:0;font-size:16px;font-weight:600}
 .dt-view-body{margin:0;font-size:13px;line-height:1.6;color:var(--dsw-alias-label-secondary)}
-.dt-agent{margin:0 0 2px;font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--dsw-alias-brand-primary)}
+.dt-agent-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 2px}
+.dt-agent{margin:0;font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--dsw-alias-brand-primary)}
+.dt-back{font:inherit;font-size:11px;padding:2px 8px;border-radius:6px;cursor:pointer;border:1px solid var(--dsw-alias-border-l1);background:transparent;color:var(--dsw-alias-label-secondary);white-space:nowrap}
+.dt-back:hover:not(:disabled){color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l2)}
+.dt-back:disabled{opacity:.5;cursor:default}
 .dt-fleet{display:flex;flex-direction:column;gap:1px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;padding:9px 11px;background:var(--dsw-alias-bg-layer-1)}
 .dt-fleet-row{display:flex;align-items:center;gap:8px;font-size:12px;padding:3px 4px;border-radius:6px}
 .dt-fleet-row[data-open="true"]{cursor:pointer}
@@ -713,16 +719,19 @@ window.__ModuleLoader__.load({
           { className: 'dt-section-title' },
           `${t('fleet.title')} · ${agents.length}`,
         ),
-        agents.map(agent =>
-          h(
+        agents.map(agent => {
+          // Opening the session you are already in would replace the view for
+          // nothing, and it is the one row that must not look clickable.
+          const clickable = typeof onOpen === 'function' && agent.current !== true
+          return h(
             'div',
             {
               key: agent.id,
               className: 'dt-fleet-row',
-              'data-open': typeof onOpen === 'function',
+              'data-open': clickable,
               title: String(agent.id),
               style: { paddingLeft: `${Math.max(0, Number(agent.depth) || 0) * 14 + 4}px` },
-              onClick: typeof onOpen === 'function' ? () => onOpen(agent.id) : undefined,
+              onClick: clickable ? () => onOpen(agent.id) : undefined,
             },
             h('span', { className: 'dt-fleet-node' }, Number(agent.depth) > 0 ? '└' : '●'),
             h(
@@ -750,8 +759,8 @@ window.__ModuleLoader__.load({
                   `${Number(agent.superseding)} ${t('fleet.superseding')}`,
                 )
               : null,
-          ),
-        ),
+          )
+        }),
       )
     }
 
@@ -1036,15 +1045,37 @@ window.__ModuleLoader__.load({
           header,
           agent
             ? h(
-                'p',
-                { className: 'dt-agent' },
-                [
-                  isSubagent ? t('agent.subagent') : t('agent.root'),
-                  `${t('agent.depth')} ${Number(agent.depth) || 0}`,
-                  typeof agent.preset === 'string' && agent.preset !== '' ? agent.preset : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · '),
+                'div',
+                { className: 'dt-agent-row' },
+                h(
+                  'span',
+                  { className: 'dt-agent' },
+                  [
+                    isSubagent ? t('agent.subagent') : t('agent.root'),
+                    `${t('agent.depth')} ${Number(agent.depth) || 0}`,
+                    typeof agent.preset === 'string' && agent.preset !== '' ? agent.preset : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · '),
+                ),
+                // The fleet jump replaces the whole view, so a child session
+                // needs its own way back: the parent id is in the header.
+                isSubagent && typeof agent.parent === 'string' && agent.parent !== ''
+                  ? h(
+                      'button',
+                      {
+                        type: 'button',
+                        className: 'dt-back',
+                        title: String(agent.parent),
+                        onClick:
+                          typeof props.openSession === 'function'
+                            ? () => props.openSession(String(agent.parent))
+                            : undefined,
+                        disabled: typeof props.openSession !== 'function',
+                      },
+                      `← ${t('agent.backToParent')}`,
+                    )
+                  : null,
               )
             : null,
           props.enabled && Array.isArray(fleet) && fleet.length > 1
