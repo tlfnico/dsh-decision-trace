@@ -227,10 +227,12 @@ window.__ModuleLoader__.load({
 .dt-tl-item:only-child .dt-tl-rail{display:none}
 .dt-tl-node{position:absolute;left:3px;top:15px;width:12px;height:12px;border-radius:50%;background:var(--dsw-alias-state-idle-primary)}
 .dt-tl-dot{position:absolute;left:5px;top:17px;width:8px;height:8px;border-radius:50%;background:var(--dsw-alias-bg-base);border:2px solid var(--dsw-alias-border-l2);box-sizing:content-box}
-.dt-prompt{display:flex;flex-direction:column;gap:3px;padding:6px 9px}
-.dt-prompt-head{display:flex;align-items:center;gap:8px}
+.dt-prompt{display:flex;flex-direction:column;gap:3px;width:100%;box-sizing:border-box;padding:6px 9px;background:transparent;border:0;border-radius:8px;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.dt-prompt:hover{background:var(--dsw-alias-bg-layer-1)}
+.dt-prompt-head{display:flex;align-items:center;gap:8px;width:100%}
 .dt-prompt-label{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--dsw-alias-label-secondary)}
-.dt-prompt-text{font-size:12px;line-height:1.45;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.dt-prompt-text{font-size:12px;line-height:1.45;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.dt-prompt-text-open{display:block;-webkit-line-clamp:unset;max-height:240px;overflow:auto;white-space:pre-wrap}
 .dt-node-accepted{background:var(--dsw-alias-state-success-primary)}
 .dt-node-rejected{background:var(--dsw-alias-state-error-primary)}
 .dt-node-proposed{background:var(--dsw-alias-state-idle-primary)}
@@ -773,14 +775,12 @@ window.__ModuleLoader__.load({
       )
     }
 
-    /** One-line preview: a prompt is context, not a document. */
-    function previewText(text, limit) {
-      const flat = String(text ?? '').replace(/\s+/g, ' ').trim()
-      return flat.length > limit ? `${flat.slice(0, limit).trimEnd()}…` : flat
-    }
-
-    /** A prompt or the session's own beginning: context, not a decision. */
-    function contextItem(item, t) {
+    /**
+     * A prompt or the session's own beginning: context, not a decision.
+     * Collapsed to one line by default — the request is background for the
+     * decisions under it, and only opens when asked.
+     */
+    function contextItem(item, t, open, onToggle) {
       const label = item.kind === 'start' ? t('timeline.start') : t('timeline.prompt')
       return h(
         'div',
@@ -791,10 +791,15 @@ window.__ModuleLoader__.load({
           'div',
           { className: 'dt-tl-body' },
           h(
-            'div',
-            { className: 'dt-prompt' },
+            'button',
+            {
+              type: 'button',
+              className: 'dt-prompt',
+              'aria-expanded': open,
+              onClick: onToggle,
+            },
             h(
-              'div',
+              'span',
               { className: 'dt-prompt-head' },
               h('span', { className: 'dt-prompt-label' }, label),
               h(
@@ -802,9 +807,18 @@ window.__ModuleLoader__.load({
                 { className: 'dt-time', title: absoluteTime(item.at) },
                 relativeTime(item.at),
               ),
+              h('span', { className: 'dt-tl-spacer' }),
+              h('span', { className: 'dt-chevron' }, open ? '▾' : '▸'),
             ),
             item.text
-              ? h('div', { className: 'dt-prompt-text', title: String(item.text) }, item.text)
+              ? h(
+                  'span',
+                  {
+                    className: open ? 'dt-prompt-text dt-prompt-text-open' : 'dt-prompt-text',
+                    title: String(item.text),
+                  },
+                  String(item.text),
+                )
               : null,
           ),
         ),
@@ -1080,7 +1094,7 @@ window.__ModuleLoader__.load({
             kind: 'start',
             seq: -1,
             at: startedAt,
-            text: firstPrompt ? previewText(firstPrompt.text, 220) : '',
+            text: firstPrompt ? String(firstPrompt.text) : '',
           })
         }
         for (const prompt of prompts) {
@@ -1090,7 +1104,7 @@ window.__ModuleLoader__.load({
             kind: 'prompt',
             seq: Number(prompt.seq) || 0,
             at: Number(prompt.at) || 0,
-            text: previewText(prompt.text, 160),
+            text: String(prompt.text),
           })
         }
       }
@@ -1105,17 +1119,21 @@ window.__ModuleLoader__.load({
             ? h(
                 'div',
                 { className: 'dt-timeline' },
-                timelineNodes.map(node =>
-                  node.kind === 'decision'
-                    ? timelineItem(
-                        node.decision,
-                        openId === node.decision.id,
-                        toggle(node.decision),
-                        t,
-                        replacedBy,
-                      )
-                    : contextItem(node, t),
-                ),
+                timelineNodes.map(node => {
+                  if (node.kind === 'decision') {
+                    return timelineItem(
+                      node.decision,
+                      openId === node.decision.id,
+                      toggle(node.decision),
+                      t,
+                      replacedBy,
+                    )
+                  }
+                  const key = `c:${node.kind}:${node.seq}`
+                  return contextItem(node, t, openId === key, () =>
+                    setOpenId(openId === key ? null : key),
+                  )
+                }),
               )
             : h(
                 'div',
