@@ -56,6 +56,7 @@ window.__ModuleLoader__.load({
         'detail.supersedes': 'Replaces',
         'detail.replacedBy': 'replaced by',
         'agent.subagent': 'Subagent',
+        'agent.root': 'Root agent',
         'agent.depth': 'depth',
         'card.label': 'Decision',
         'card.recording': 'recording',
@@ -108,6 +109,7 @@ window.__ModuleLoader__.load({
         'detail.supersedes': 'Reemplaza a',
         'detail.replacedBy': 'reemplazada por',
         'agent.subagent': 'Subagente',
+        'agent.root': 'Agente raíz',
         'agent.depth': 'profundidad',
         'card.label': 'Decisión',
         'card.recording': 'registrando',
@@ -842,12 +844,12 @@ window.__ModuleLoader__.load({
           'div',
           { className: 'dt-view-inner' },
           header,
-          isSubagent
+          agent
             ? h(
                 'p',
                 { className: 'dt-agent' },
                 [
-                  t('agent.subagent'),
+                  isSubagent ? t('agent.subagent') : t('agent.root'),
                   `${t('agent.depth')} ${Number(agent.depth) || 0}`,
                   typeof agent.preset === 'string' && agent.preset !== '' ? agent.preset : null,
                 ]
