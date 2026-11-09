@@ -112,6 +112,23 @@ function finalizedDecision(state, event, pending) {
  * unchanged state costs nothing downstream.
  */
 /**
+ * The Harness appends its own runtime context to the user's message. It is
+ * machine metadata, not something the user asked, so the record keeps only
+ * what the user wrote.
+ */
+const RUNTIME_MARKERS = ['Time sampled while preparing', 'Current runtime context']
+
+function userText(message) {
+  const raw = userMessageText(message)
+  let cut = raw.length
+  for (const marker of RUNTIME_MARKERS) {
+    const index = raw.indexOf(marker)
+    if (index > 0 && index < cut) cut = index
+  }
+  return raw.slice(0, cut).trim()
+}
+
+/**
  * A `user/message` event carries the message itself in `data`, while the
  * developer and system events wrap theirs in `data.message`. Read both, so the
  * evidence never silently comes back empty again.
@@ -127,7 +144,7 @@ function messageOf(event) {
 
 export function applyDecisionEvent(state, event) {
   if (event.type === 'user/message') {
-    const text = userMessageText(messageOf(event)).slice(0, 200)
+    const text = userText(messageOf(event)).slice(0, 200)
     const next = { ...state, lastUser: { seq: event.seq, text } }
     // A message with no text still opens a turn, but it makes a poor timeline
     // node, so only readable prompts are kept.

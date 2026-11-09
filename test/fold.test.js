@@ -107,6 +107,14 @@ test('the session start comes from the header and prompts become timeline nodes'
   )
 })
 
+test('the injected runtime context is not part of the prompt', () => {
+  const injected =
+    'build me a plugin\n\nTime sampled while preparing turn 1, step 1: 2026-11-09T19:44:56-03:00[America/Buenos_Aires] Browser time zone for this request: America/Buenos_Aires.'
+  const state = foldDecisions([userEvent(1, injected)], header)
+  assert.equal(state.prompts[0].text, 'build me a plugin')
+  assert.equal(state.lastUser.text, 'build me a plugin')
+})
+
 test('a prompt with no text opens a turn but adds no timeline node', () => {
   const state = foldDecisions([userEvent(1, '')], header)
   assert.equal(state.lastUser.seq, 1)

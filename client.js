@@ -236,8 +236,7 @@ window.__ModuleLoader__.load({
 .dt-prompt:hover{background:var(--dsw-alias-bg-layer-1)}
 .dt-prompt-head{display:flex;align-items:center;gap:8px;width:100%}
 .dt-prompt-label{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--dsw-alias-label-secondary)}
-.dt-prompt-text{font-size:12px;line-height:1.45;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
-.dt-prompt-text-open{display:block;-webkit-line-clamp:unset;max-height:240px;overflow:auto;white-space:pre-wrap}
+.dt-prompt-text{font-size:12px;line-height:1.45;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere;white-space:pre-wrap;max-height:240px;overflow:auto}
 .dt-node-accepted{background:var(--dsw-alias-state-success-primary)}
 .dt-node-rejected{background:var(--dsw-alias-state-error-primary)}
 .dt-node-proposed{background:var(--dsw-alias-state-idle-primary)}
@@ -820,15 +819,8 @@ window.__ModuleLoader__.load({
               h('span', { className: 'dt-tl-spacer' }),
               h('span', { className: 'dt-chevron' }, open ? '▾' : '▸'),
             ),
-            item.text
-              ? h(
-                  'span',
-                  {
-                    className: open ? 'dt-prompt-text dt-prompt-text-open' : 'dt-prompt-text',
-                    title: String(item.text),
-                  },
-                  String(item.text),
-                )
+            open && item.text
+              ? h('span', { className: 'dt-prompt-text' }, String(item.text))
               : null,
           ),
         ),

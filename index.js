@@ -24,9 +24,9 @@ import {
 
 const PROMPT_SECTION = 'decision-trace'
 const PROJECTION_KEY = 'decisionTrace'
-// 8: decisions carry a weight, so a minor choice can be recorded without
-// competing with the ones that moved the course.
-const PROJECTION_VERSION = 8
+// 9: prompt text drops the runtime context the Harness appends to a user
+// message, so the record keeps only what the user asked.
+const PROJECTION_VERSION = 9
 
 const CATEGORIES = [
   'architecture',
