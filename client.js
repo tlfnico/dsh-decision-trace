@@ -230,7 +230,7 @@ window.__ModuleLoader__.load({
 .dt-prompt{display:flex;flex-direction:column;gap:3px;padding:6px 9px}
 .dt-prompt-head{display:flex;align-items:center;gap:8px}
 .dt-prompt-label{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--dsw-alias-label-secondary)}
-.dt-prompt-text{font-size:12px;line-height:1.5;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere;white-space:pre-wrap}
+.dt-prompt-text{font-size:12px;line-height:1.45;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .dt-node-accepted{background:var(--dsw-alias-state-success-primary)}
 .dt-node-rejected{background:var(--dsw-alias-state-error-primary)}
 .dt-node-proposed{background:var(--dsw-alias-state-idle-primary)}
@@ -773,6 +773,12 @@ window.__ModuleLoader__.load({
       )
     }
 
+    /** One-line preview: a prompt is context, not a document. */
+    function previewText(text, limit) {
+      const flat = String(text ?? '').replace(/\s+/g, ' ').trim()
+      return flat.length > limit ? `${flat.slice(0, limit).trimEnd()}…` : flat
+    }
+
     /** A prompt or the session's own beginning: context, not a decision. */
     function contextItem(item, t) {
       const label = item.kind === 'start' ? t('timeline.start') : t('timeline.prompt')
@@ -797,7 +803,9 @@ window.__ModuleLoader__.load({
                 relativeTime(item.at),
               ),
             ),
-            item.text ? h('div', { className: 'dt-prompt-text' }, String(item.text)) : null,
+            item.text
+              ? h('div', { className: 'dt-prompt-text', title: String(item.text) }, item.text)
+              : null,
           ),
         ),
       )
@@ -1059,9 +1067,12 @@ window.__ModuleLoader__.load({
       // and what was decided. Filters narrow it to decisions only, because a
       // prompt whose decision was filtered out would read as a dangling line.
       const prompts = projection && Array.isArray(projection.prompts) ? projection.prompts : []
+      const firstPrompt =
+        projection && projection.firstPrompt && typeof projection.firstPrompt === 'object'
+          ? projection.firstPrompt
+          : null
       const startedAt =
         projection && typeof projection.startedAt === 'number' ? projection.startedAt : 0
-      const [headPrompt, ...laterPrompts] = prompts
       const timelineNodes = []
       if (!filtered) {
         if (startedAt > 0) {
@@ -1069,15 +1080,17 @@ window.__ModuleLoader__.load({
             kind: 'start',
             seq: -1,
             at: startedAt,
-            text: headPrompt ? String(headPrompt.text) : '',
+            text: firstPrompt ? previewText(firstPrompt.text, 220) : '',
           })
         }
-        for (const prompt of headPrompt ? laterPrompts : []) {
+        for (const prompt of prompts) {
+          // The opening prompt already heads the timeline as its first node.
+          if (firstPrompt !== null && Number(prompt.seq) === Number(firstPrompt.seq)) continue
           timelineNodes.push({
             kind: 'prompt',
             seq: Number(prompt.seq) || 0,
             at: Number(prompt.at) || 0,
-            text: String(prompt.text),
+            text: previewText(prompt.text, 160),
           })
         }
       }

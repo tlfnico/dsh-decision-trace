@@ -15,8 +15,8 @@
 
 export const TOOL_NAME = 'decision_record'
 
-/** Prompts kept for the timeline; the head of the session is the interesting one. */
-const PROMPT_LIMIT = 40
+/** Prompts kept for the timeline; the first one is kept apart and never dropped. */
+const PROMPT_LIMIT = 20
 
 export function asString(value) {
   return typeof value === 'string' ? value.trim() : ''
@@ -56,6 +56,9 @@ export function initialState(header) {
     // The session's own beginning, so the timeline can start before the first
     // decision instead of floating.
     startedAt: typeof header?.createdAt === 'number' ? header.createdAt : 0,
+    // The prompt that opened the session is the one node that must survive any
+    // cap, so it is held apart from the rolling window.
+    firstPrompt: null,
     prompts: [],
   }
 }
@@ -127,12 +130,15 @@ export function applyDecisionEvent(state, event) {
     // A message with no text still opens a turn, but it makes a poor timeline
     // node, so only readable prompts are kept.
     if (text === '') return next
+    const prompt = {
+      seq: event.seq,
+      at: typeof event.time === 'number' ? event.time : 0,
+      text,
+    }
     return {
       ...next,
-      prompts: [
-        ...state.prompts,
-        { seq: event.seq, at: typeof event.time === 'number' ? event.time : 0, text },
-      ].slice(-PROMPT_LIMIT),
+      firstPrompt: state.firstPrompt === null ? prompt : state.firstPrompt,
+      prompts: [...state.prompts, prompt].slice(-PROMPT_LIMIT),
     }
   }
 

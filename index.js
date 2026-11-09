@@ -24,9 +24,9 @@ import {
 
 const PROMPT_SECTION = 'decision-trace'
 const PROJECTION_KEY = 'decisionTrace'
-// 6: user messages are read from `data` (their own shape), so prompts and the
-// "what was being asked" evidence are populated instead of empty.
-const PROJECTION_VERSION = 6
+// 7: the prompt that opened the session survives the rolling cap, so the first
+// timeline node is always the session's own beginning.
+const PROJECTION_VERSION = 7
 
 const CATEGORIES = [
   'architecture',
@@ -162,6 +162,7 @@ const projectionStateSchema = z.object({
     parent: z.string().nullable(),
   }),
   startedAt: z.number(),
+  firstPrompt: promptSchema.nullable(),
   prompts: z.array(promptSchema),
 })
 
@@ -174,6 +175,7 @@ const projectionViewSchema = z.object({
     parent: z.string().nullable(),
   }),
   startedAt: z.number(),
+  firstPrompt: promptSchema.nullable(),
   prompts: z.array(promptSchema),
 })
 
@@ -374,6 +376,7 @@ export async function apply(ctx, config) {
           decisions: state.decisions,
           agent: state.agent,
           startedAt: state.startedAt,
+          firstPrompt: state.firstPrompt,
           prompts: state.prompts,
         }),
       },

@@ -102,12 +102,13 @@ test('a wrapped user message is still read, in case a build nests it', () => {
   assert.equal(state.lastUser.text, 'wrapped')
 })
 
-test('prompts are bounded', () => {
+test('prompts are bounded but the session-opening prompt survives the cap', () => {
   const events = []
   for (let seq = 1; seq <= 60; seq += 1) events.push(userEvent(seq, `prompt ${seq}`))
   const state = foldDecisions(events, header)
-  assert.equal(state.prompts.length, 40)
-  assert.equal(state.prompts[0].text, 'prompt 21')
+  assert.equal(state.prompts.length, 20)
+  assert.equal(state.prompts[0].text, 'prompt 41')
+  assert.equal(state.firstPrompt.text, 'prompt 1', 'the opening prompt is never dropped')
 })
 
 test('an empty log keeps the agent context and no decisions', () => {
