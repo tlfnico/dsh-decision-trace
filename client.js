@@ -952,6 +952,7 @@ window.__ModuleLoader__.load({
       // many decisions the current filter leaves visible.
       const statuses = [...new Set(decisions.map(entry => entry.status).filter(Boolean))]
       const categories = [...new Set(decisions.map(entry => entry.category).filter(Boolean))]
+      const minorCount = decisions.filter(entry => entry.weight === 'minor').length
       const filtered = filter.status !== '' || filter.category !== ''
       const visible = filtered
         ? decisions.filter(
@@ -1051,7 +1052,6 @@ window.__ModuleLoader__.load({
       const toggle = decision => () =>
         setOpenId(openId === decision.id ? null : decision.id)
       const replacedBy = supersededIndex(decisions)
-      const minorCount = decisions.filter(entry => entry.weight === 'minor').length
 
       const chips = []
       if (filtered) {
