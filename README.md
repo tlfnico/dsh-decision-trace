@@ -23,10 +23,9 @@ An audit plugin that records without permission contradicts its own premise. Thi
 
 ## Install
 
-From a clone of this repository:
-
 ```powershell
-plugin_manager install_bundle <path to this checkout>
+git clone https://github.com/tlfnico/dsh-decision-trace.git
+plugin_manager install_bundle <path to the clone>
 ```
 
 Then enable it with a row in the profile's `cordis.patch.yml`:
