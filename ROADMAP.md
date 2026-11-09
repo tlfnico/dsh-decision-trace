@@ -8,6 +8,8 @@
 - Session projection (`decisionTrace`) so the browser half never folds the log itself.
 - Session provenance: root or subagent, delegation depth, preset — in the view and in the export.
 - Fleet topology: the session tree with decision counts per agent, read from the live store plus the provider's durable child discovery.
+- Filters by status and category, when a session has more than a screenful.
+- The fold extracted to `fold.js` with no imports, and a `node --test` suite that pins the rules (rejected records take no id, the call-id fallback, dangling references, replay determinism).
 - Opt-in: off by default, so it costs no context until enabled.
 - Zero new session event types; uninstalling leaves every session intact.
 
@@ -16,9 +18,7 @@
 - **Fleet roll-up, with content.** v0.1 shows the tree as topology and counts, and lets you open another agent's session. What is missing is every agent's timeline in one place: retain each child session and read its `decisionTrace` projection through the authenticated session transport (`sessions.retain(id).binding.session.projections.faceOf`), then page through the combined list.
 - **The tree as a diagram.** Nodes per agent, one dot per decision coloured by status, arrows for supersession — as a detail of the roll-up table, not as the landing view.
 - **Counts for finished agents.** A child whose agent already left the live store is listed with unknown counts. Reading its persisted projection would fill them.
-- **Filters** by status, category and file, once a session has more than a screenful.
 - **Evidence depth.** Link each declared file to the nearest file operation that touched it, instead of only naming the path.
-- **Tests.** The fold is pure and its rules are subtle (rejected records take no id, the call-id fallback, dangling references). A table-driven test would pin them down without a harness.
 
 ## v0.2 — detection
 
